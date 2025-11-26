@@ -260,11 +260,17 @@ initDb();
 // --- Auth Middleware ---
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.sendStatus(401);
+  if (!authHeader) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: 'Invalid authorization header' });
+  }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(401); // Changed from 403 to 401
+    if (err) return res.status(401).json({ message: 'Invalid or expired token' });
     req.user = user;
     next();
   });
@@ -297,7 +303,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (isValid) {
       console.log(`✅ Login successful for: ${username}`);
       // 3. Generate Token
-      const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+      const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
       // Remove sensitive data
       delete user.password_hash;
@@ -317,13 +323,15 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT id, username, name, role, is_active, created_at, updated_at FROM users WHERE id = $1', [req.user.id]);
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.sendStatus(404);
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
+
+    res.json(user);
   } catch (e) {
-    res.sendStatus(500);
+    res.status(500).json({ error: e.message });
   }
 });
 
