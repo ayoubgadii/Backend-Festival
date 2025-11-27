@@ -453,12 +453,21 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
 app.put('/api/groups/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId } = req.body;
-  await pool.query(
-    `UPDATE groups SET institution_name=$1, responsible_name=$2, students_count=$3, participation_type=$4, morning_location=$5, afternoon_location=$6, first_receiver_id=$7, guide_id=$8, updated_at=NOW() 
-         WHERE id=$9`,
-    [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId, id]
-  );
-  res.sendStatus(200);
+
+  console.log(`📝 Updating Group ${id}:`, req.body);
+
+  try {
+    await pool.query(
+      `UPDATE groups SET institution_name=$1, responsible_name=$2, students_count=$3, participation_type=$4, morning_location=$5, afternoon_location=$6, first_receiver_id=$7, guide_id=$8, updated_at=NOW() 
+           WHERE id=$9`,
+      [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId, id]
+    );
+    console.log(`✅ Group ${id} updated successfully.`);
+    res.sendStatus(200);
+  } catch (e) {
+    console.error(`❌ Error updating group ${id}:`, e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/groups/:id', authenticateToken, async (req, res) => {
@@ -529,18 +538,26 @@ app.put('/api/invitations/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, phone, invitationsCount, invitationType, status, sentBy } = req.body;
 
-  if (status === 'SENT' || status === 'FAILED') {
-    await pool.query(
-      `UPDATE invitations SET status=$1, sent_by=$2, sent_at=NOW(), updated_at=NOW() WHERE id=$3`,
-      [status, sentBy, id]
-    );
-  } else {
-    await pool.query(
-      `UPDATE invitations SET name=$1, phone=$2, invitations_count=$3, invitation_type=$4, updated_at=NOW() WHERE id=$5`,
-      [name, phone, invitationsCount, invitationType, id]
-    );
+  console.log(`📝 Updating Invitation ${id}:`, req.body);
+
+  try {
+    if (status === 'SENT' || status === 'FAILED') {
+      await pool.query(
+        `UPDATE invitations SET status=$1, sent_by=$2, sent_at=NOW(), updated_at=NOW() WHERE id=$3`,
+        [status, sentBy, id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE invitations SET name=$1, phone=$2, invitations_count=$3, invitation_type=$4, updated_at=NOW() WHERE id=$5`,
+        [name, phone, invitationsCount, invitationType, id]
+      );
+    }
+    console.log(`✅ Invitation ${id} updated successfully.`);
+    res.sendStatus(200);
+  } catch (e) {
+    console.error(`❌ Error updating invitation ${id}:`, e);
+    res.status(500).json({ error: e.message });
   }
-  res.sendStatus(200);
 });
 
 app.delete('/api/invitations/:id', authenticateToken, async (req, res) => {
