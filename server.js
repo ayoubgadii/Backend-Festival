@@ -650,7 +650,7 @@ app.put('/api/invitations/:id/status', authenticateToken, async (req, res) => {
     }
 
     console.log(`✅ Invitation status for ${id} updated successfully.`);
-    res.json({ ok: true, updated: result.rows[0] });
+    res.json(result.rows[0]);
 
   } catch (e) {
     console.error(`❌ Error updating invitation status for ${id}:`, e);
