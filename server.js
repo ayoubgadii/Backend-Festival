@@ -532,7 +532,7 @@ app.put('/api/groups/:id', authenticateToken, async (req, res) => {
       firstReceiverId: result.rows[0].first_receiver_id,
       guideId: result.rows[0].guide_id,
       createdBy: result.rows[0].created_by,
-      createdAt: result.rows[0].created_.at,
+      createdAt: result.rows[0].created_at,
       updatedAt: result.rows[0].updated_at,
     };
     res.json({ ok: true, updated: updatedGroup });
