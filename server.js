@@ -240,6 +240,24 @@ const initDb = async () => {
       console.log("✅ Admin password reset to 'admin123'.");
     }
 
+    // --- AUTOMATIC SCHEMA MIGRATION ---
+    console.log("🔄 Checking for schema updates...");
+    const tablesToUpdate = ['groups', 'invitations'];
+    for (const table of tablesToUpdate) {
+      const colRes = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = $1 AND column_name = 'updated_at'
+      `, [table]);
+
+      if (colRes.rows.length === 0) {
+        console.log(`🩹 Applying migration: Adding 'updated_at' to '${table}' table.`);
+        await client.query(`ALTER TABLE ${table} ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW()`);
+        console.log(`✅ Column 'updated_at' added to '${table}'.`);
+      }
+    }
+    console.log("✅ Schema is up to date.");
+
     console.log(`
     ------------------------------------------------
     ✅ LOGIN CREDENTIALS (GUARANTEED):
