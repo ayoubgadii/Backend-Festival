@@ -67,7 +67,7 @@ const initDb = async () => {
         guide_id TEXT,
         created_by TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        updated_at TIMESTAMPTZ DEFAULT NOW() -- This line was missing
       );
     `);
 
@@ -478,11 +478,11 @@ app.put('/api/groups/:id', authenticateToken, async (req, res) => {
        RETURNING *`,
       [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId, id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Group not found." });
     }
-    
+
     console.log(`✅ Group ${id} updated successfully.`);
     // Return the updated group data
     const updatedGroup = {
@@ -595,7 +595,7 @@ app.put('/api/invitations/:id', authenticateToken, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Invitation not found." });
     }
-    
+
     const updatedResult = result.rows[0];
     console.log(`✅ Invitation ${id} updated successfully.`);
     res.json({ ok: true, updated: updatedResult });
