@@ -77,8 +77,7 @@ async function testSendInvitation() {
     const inviteId = 'EXISTING_INVITATION_ID_HERE';
 
     const payload = {
-        status: 'SENT',
-        sentBy: 'Test Script'
+        status: 'SENT'
     };
 
     try {
