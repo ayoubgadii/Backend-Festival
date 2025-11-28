@@ -82,7 +82,7 @@ async function testSendInvitation() {
     };
 
     try {
-        const res = await fetch(`${API_URL}/invitations/${inviteId}`, {
+        const res = await fetch(`${API_URL}/invitations/${inviteId}/status`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
