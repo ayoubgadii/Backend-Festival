@@ -9,7 +9,11 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = 'miff-secret-key-change-in-prod';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  allowedHeaders: 'Content-Type,Authorization',
+}));
 app.use(express.json({ limit: '50mb' }));
 
 // Database Connection
@@ -452,18 +456,52 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
 
 app.put('/api/groups/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
+  // Make sure to use the correct frontend field names
   const { institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId } = req.body;
 
   console.log(`📝 Updating Group ${id}:`, req.body);
 
   try {
-    await pool.query(
-      `UPDATE groups SET institution_name=$1, responsible_name=$2, students_count=$3, participation_type=$4, morning_location=$5, afternoon_location=$6, first_receiver_id=$7, guide_id=$8, updated_at=NOW() 
-           WHERE id=$9`,
+    const result = await pool.query(
+      `UPDATE groups 
+       SET 
+         institution_name = $1, 
+         responsible_name = $2, 
+         students_count = $3, 
+         participation_type = $4, 
+         morning_location = $5, 
+         afternoon_location = $6, 
+         first_receiver_id = $7, 
+         guide_id = $8, 
+         updated_at = NOW() 
+       WHERE id = $9
+       RETURNING *`,
       [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId, id]
     );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Group not found." });
+    }
+    
     console.log(`✅ Group ${id} updated successfully.`);
-    res.sendStatus(200);
+    // Return the updated group data
+    const updatedGroup = {
+      id: result.rows[0].id,
+      institutionName: result.rows[0].institution_name,
+      responsibleName: result.rows[0].responsible_name,
+      studentsCount: result.rows[0].students_count,
+      participationType: result.rows[0].participation_type,
+      morningLocation: result.rows[0].morning_location,
+      afternoonLocation: result.rows[0].afternoon_location,
+      festivalDate: result.rows[0].festival_date,
+      firstReceiverId: result.rows[0].first_receiver_id,
+      guideId: result.rows[0].guide_id,
+      createdBy: result.rows[0].created_by,
+      createdAt: result.rows[0].created_at,
+      updatedAt: result.rows[0].updated_at,
+    };
+    res.json({ ok: true, updated: updatedGroup });
+
   } catch (e) {
     console.error(`❌ Error updating group ${id}:`, e);
     res.status(500).json({ error: e.message });
@@ -536,26 +574,68 @@ app.post('/api/invitations/batch', authenticateToken, async (req, res) => {
 
 app.put('/api/invitations/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const { name, phone, invitationsCount, invitationType, status, sentBy } = req.body;
+  const { name, phone, invitationsCount, invitationType } = req.body;
 
   console.log(`📝 Updating Invitation ${id}:`, req.body);
 
   try {
-    if (status === 'SENT' || status === 'FAILED') {
-      await pool.query(
-        `UPDATE invitations SET status=$1, sent_by=$2, sent_at=NOW(), updated_at=NOW() WHERE id=$3`,
-        [status, sentBy, id]
-      );
-    } else {
-      await pool.query(
-        `UPDATE invitations SET name=$1, phone=$2, invitations_count=$3, invitation_type=$4, updated_at=NOW() WHERE id=$5`,
-        [name, phone, invitationsCount, invitationType, id]
-      );
+    const result = await pool.query(
+      `UPDATE invitations 
+       SET 
+         name = $1, 
+         phone = $2, 
+         invitations_count = $3, 
+         invitation_type = $4, 
+         updated_at = NOW() 
+       WHERE id = $5
+       RETURNING *`,
+      [name, phone, invitationsCount, invitationType, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Invitation not found." });
     }
+    
+    const updatedResult = result.rows[0];
     console.log(`✅ Invitation ${id} updated successfully.`);
-    res.sendStatus(200);
+    res.json({ ok: true, updated: updatedResult });
+
   } catch (e) {
     console.error(`❌ Error updating invitation ${id}:`, e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Dedicated endpoint for status updates.
+app.put('/api/invitations/:id/status', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; // Expecting something like { status: "CONFIRMED" }
+  const sentBy = req.user.id;
+
+  console.log(`📝 Updating Invitation Status ${id}:`, req.body);
+
+  try {
+    const result = await pool.query(
+      `UPDATE invitations 
+       SET 
+         status = $1, 
+         sent_by = $2, 
+         sent_at = NOW(), 
+         updated_at = NOW() 
+       WHERE id = $3
+       RETURNING *`,
+      [status, sentBy, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Invitation not found." });
+    }
+
+    console.log(`✅ Invitation status for ${id} updated successfully.`);
+    res.json({ ok: true, updated: result.rows[0] });
+
+  } catch (e) {
+    console.error(`❌ Error updating invitation status for ${id}:`, e);
     res.status(500).json({ error: e.message });
   }
 });
