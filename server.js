@@ -62,6 +62,7 @@ const initDb = async () => {
         participation_type TEXT NOT NULL,
         morning_location TEXT,
         afternoon_location TEXT,
+        evening_location TEXT,
         festival_date TEXT NOT NULL,
         first_receiver_id TEXT,
         guide_id TEXT,
@@ -255,6 +256,19 @@ const initDb = async () => {
         await client.query(`ALTER TABLE ${table} ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW()`);
         console.log(`✅ Column 'updated_at' added to '${table}'.`);
       }
+    }
+
+    // Add evening_location to groups table if it doesn't exist
+    const eveningLocationRes = await client.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'groups' AND column_name = 'evening_location'
+    `);
+
+    if (eveningLocationRes.rows.length === 0) {
+      console.log(`🩹 Applying migration: Adding 'evening_location' to 'groups' table.`);
+      await client.query(`ALTER TABLE groups ADD COLUMN evening_location TEXT`);
+      console.log(`✅ Column 'evening_location' added to 'groups'.`);
     }
     console.log("✅ Schema is up to date.");
 
@@ -450,6 +464,7 @@ app.get('/api/groups', authenticateToken, async (req, res) => {
       participationType: r.participation_type,
       morningLocation: r.morning_location,
       afternoonLocation: r.afternoon_location,
+      eveningLocation: r.evening_location,
       festivalDate: r.festival_date,
       firstReceiverId: r.first_receiver_id,
       guideId: r.guide_id,
@@ -461,12 +476,12 @@ app.get('/api/groups', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/groups', authenticateToken, async (req, res) => {
-  const { institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, festivalDate, firstReceiverId, guideId, createdBy } = req.body;
+  const { institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, eveningLocation, festivalDate, firstReceiverId, guideId, createdBy } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO groups (institution_name, responsible_name, students_count, participation_type, morning_location, afternoon_location, festival_date, first_receiver_id, guide_id, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, festivalDate, firstReceiverId, guideId, createdBy]
+      `INSERT INTO groups (institution_name, responsible_name, students_count, participation_type, morning_location, afternoon_location, evening_location, festival_date, first_receiver_id, guide_id, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, eveningLocation, festivalDate, firstReceiverId, guideId, createdBy]
     );
     res.json(result.rows[0]);
   } catch (e) { res.status(500).send(e.message); }
@@ -475,7 +490,7 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
 app.put('/api/groups/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   // Make sure to use the correct frontend field names
-  const { institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId } = req.body;
+  const { institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, eveningLocation, firstReceiverId, guideId } = req.body;
 
   console.log(`📝 Updating Group ${id}:`, req.body);
 
@@ -489,12 +504,13 @@ app.put('/api/groups/:id', authenticateToken, async (req, res) => {
          participation_type = $4, 
          morning_location = $5, 
          afternoon_location = $6, 
-         first_receiver_id = $7, 
-         guide_id = $8, 
+         evening_location = $7,
+         first_receiver_id = $8, 
+         guide_id = $9, 
          updated_at = NOW() 
-       WHERE id = $9
+       WHERE id = $10
        RETURNING *`,
-      [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, firstReceiverId, guideId, id]
+      [institutionName, responsibleName, studentsCount, participationType, morningLocation, afternoonLocation, eveningLocation, firstReceiverId, guideId, id]
     );
 
     if (result.rows.length === 0) {
@@ -511,11 +527,12 @@ app.put('/api/groups/:id', authenticateToken, async (req, res) => {
       participationType: result.rows[0].participation_type,
       morningLocation: result.rows[0].morning_location,
       afternoonLocation: result.rows[0].afternoon_location,
+      eveningLocation: result.rows[0].evening_location,
       festivalDate: result.rows[0].festival_date,
       firstReceiverId: result.rows[0].first_receiver_id,
       guideId: result.rows[0].guide_id,
       createdBy: result.rows[0].created_by,
-      createdAt: result.rows[0].created_at,
+      createdAt: result.rows[0].created_.at,
       updatedAt: result.rows[0].updated_at,
     };
     res.json({ ok: true, updated: updatedGroup });
